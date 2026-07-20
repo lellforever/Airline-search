@@ -35,6 +35,10 @@ CABINS = ["J", "F"]                      # 商务 + 头等
 MAX_MILES = {"J": 140000, "F": 200000}   # 单程里程上限, 超过视为非saver
 MIN_SEATS_STAR = 4                       # 家庭出行: >=4 座标星
 
+# 假期窗口: 这个日期段内的票单独置顶提醒
+PRIORITY_START = date(2027, 3, 1)
+PRIORITY_END = date(2027, 4, 10)
+
 # MR 转点伙伴 + United (你有 UA 里程)
 MR_PARTNERS = {
     "aeroplan", "virginatlantic", "flyingblue", "singapore",
@@ -68,6 +72,14 @@ def search_group(origins, dests):
     resp.raise_for_status()
     print(f"  [API 今日剩余额度: {resp.headers.get('x-ratelimit-remaining', '?')}]")
     return resp.json().get("data", [])
+
+
+def _in_window(date_str):
+    try:
+        d = date.fromisoformat(date_str[:10])
+    except (ValueError, TypeError):
+        return False
+    return PRIORITY_START <= d <= PRIORITY_END
 
 
 def extract_hits(records, direct_only):
@@ -104,18 +116,20 @@ def extract_hits(records, direct_only):
                 "direct": is_direct,
                 "star": seats >= MIN_SEATS_STAR,
                 "channel": "UA里程" if program == "united" else "MR转点",
+                "priority": _in_window(rec.get("Date", "")),
             })
     return hits
 
 
 def fmt_line(h):
     star = "★" if h["star"] else " "
+    tag = "【假期】" if h.get("priority") else ""
     miles_str = f'{h["miles"]:,}' if h["miles"] else "?"
     seats_str = str(h["seats"]) if h["seats"] else "?"
     direct_str = "直飞" if h["direct"] else "转机"
     return (f'{star} {h["date"]:<12}{h["route"]:<10}{CABIN_NAMES[h["cabin"]]:<4}'
             f'{h["program"]:<15}{miles_str:>9}  {seats_str:>2}座 '
-            f'{direct_str} [{h["channel"]}]')
+            f'{direct_str} [{h["channel"]}]{tag}')
 
 
 def main():
@@ -139,17 +153,25 @@ def main():
         print("\n没有找到符合条件的奖励票。")
         return
 
-    all_hits.sort(key=lambda h: (not h["star"], h["date"], h["miles"] or 10**9))
-    starred = [h for h in all_hits if h["star"]]
+    all_hits.sort(key=lambda h: (not h.get("priority"), not h["star"],
+                                 h["date"], h["miles"] or 10**9))
+    priority = [h for h in all_hits if h.get("priority")]
+    starred = [h for h in all_hits if h["star"] and not h.get("priority")]
 
     print("\n" + "=" * 70)
+    print(f"🎯 假期窗口 {PRIORITY_START} 至 {PRIORITY_END}: {len(priority)} 条")
+    print("-" * 70)
+    if priority:
+        for h in priority:
+            print(fmt_line(h))
+    else:
+        print("(暂时没有假期窗口内的票, 各计划仍在陆续放票, 持续监控中)")
+
     if starred:
-        print(f"★ 重点推荐 (>= {MIN_SEATS_STAR} 座, 全家可同行): {len(starred)} 条")
+        print(f"\n★ 其他日期 >= {MIN_SEATS_STAR} 座: {len(starred)} 条")
         print("-" * 70)
         for h in starred:
             print(fmt_line(h))
-    else:
-        print(f"本次没有 >= {MIN_SEATS_STAR} 座的票, 以下为全部结果 (可分批出票):")
 
     print("\n全部结果:")
     print("-" * 70)
