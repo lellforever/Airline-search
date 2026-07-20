@@ -1,46 +1,165 @@
-name: Award Search
+#!/usr/bin/env python3
+"""
+Award flight auto-search v2 — seats.aero Partner API
+LAX/SFO 出发 商务/头等 saver 监控:
+  - 直飞: 亚洲/欧洲/大洋洲主要城市
+  - 可转机: 海岛目的地 (马尔代夫/斐济/大溪地等)
+  - 4 张票优先标星, MR 转点伙伴 + United 里程分别标注
+"""
 
-on:
-  schedule:
-    # 每 3 小时跑一次 (一天 8 次)
-    - cron: "0 */3 * * *"
-  workflow_dispatch: {}   # 允许手动点按钮触发,方便测试
+import os
+import sys
+from datetime import date, timedelta
 
-permissions:
-  issues: write
-  contents: read
+import requests
 
-jobs:
-  search:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+API_BASE = "https://seats.aero/partnerapi"
+API_KEY = os.environ.get("SEATS_AERO_API_KEY", "")
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+# ============ 配置区 ============
 
-      - name: Install dependencies
-        run: pip install requests
+ORIGINS = ["LAX", "SFO"]
 
-      - name: Run award search
-        env:
-          SEATS_AERO_API_KEY: ${{ secrets.SEATS_AERO_API_KEY }}
-        run: |
-          python3 award_search.py | tee result.txt
+# 目的地分组: (组名, 机场列表, 是否只看直飞)
+DEST_GROUPS = [
+    ("亚洲", ["HND", "NRT", "HKG", "TPE", "ICN", "SIN", "BKK"], True),
+    ("欧洲", ["LHR", "CDG", "FRA", "AMS", "ZRH", "MUC"], True),
+    ("大洋洲", ["SYD", "MEL", "AKL"], True),
+    ("海岛(可转机)", ["MLE", "NAN", "PPT", "HNL", "TVU"], False),
+]
 
-      - name: Open issue if awards found
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if grep -q "共 .* 条" result.txt; then
-            TITLE="有奖励票! $(date +'%Y-%m-%d %H:%M') UTC"
-            gh issue create \
-              --repo "${{ github.repository }}" \
-              --title "$TITLE" \
-              --body-file result.txt
-          else
-            echo "本次没有搜到符合条件的票,不发通知。"
-          fi
+START_DATE = date.today() + timedelta(days=14)
+END_DATE = date.today() + timedelta(days=330)
+
+CABINS = ["J", "F"]                      # 商务 + 头等
+MAX_MILES = {"J": 140000, "F": 200000}   # 单程里程上限, 超过视为非saver
+MIN_SEATS_STAR = 4                       # 家庭出行: >=4 座标星
+
+# MR 转点伙伴 + United (你有 UA 里程)
+MR_PARTNERS = {
+    "aeroplan", "virginatlantic", "flyingblue", "singapore",
+    "qantas", "delta", "etihad", "emirates", "qatar",
+}
+WATCH_PROGRAMS = MR_PARTNERS | {"united"}
+
+# ================================
+
+CABIN_FIELDS = {
+    "J": ("JAvailable", "JMileageCost", "JRemainingSeats", "JDirect"),
+    "F": ("FAvailable", "FMileageCost", "FRemainingSeats", "FDirect"),
+}
+CABIN_NAMES = {"J": "商务", "F": "头等"}
+
+
+def search_group(origins, dests):
+    params = {
+        "origin_airport": ",".join(origins),
+        "destination_airport": ",".join(dests),
+        "start_date": START_DATE.isoformat(),
+        "end_date": END_DATE.isoformat(),
+        "take": 1000,
+    }
+    resp = requests.get(
+        f"{API_BASE}/search",
+        params=params,
+        headers={"Partner-Authorization": API_KEY, "Accept": "application/json"},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    print(f"  [API 今日剩余额度: {resp.headers.get('x-ratelimit-remaining', '?')}]")
+    return resp.json().get("data", [])
+
+
+def extract_hits(records, direct_only):
+    hits = []
+    for rec in records:
+        program = rec.get("Source", "")
+        if program not in WATCH_PROGRAMS:
+            continue
+        for cabin in CABINS:
+            avail_f, cost_f, seats_f, direct_f = CABIN_FIELDS[cabin]
+            if not rec.get(avail_f):
+                continue
+            is_direct = bool(rec.get(direct_f))
+            if direct_only and not is_direct:
+                continue
+            try:
+                miles = int(rec.get(cost_f) or 0)
+            except (TypeError, ValueError):
+                miles = 0
+            if miles and miles > MAX_MILES[cabin]:
+                continue
+            try:
+                seats = int(rec.get(seats_f) or 0)
+            except (TypeError, ValueError):
+                seats = 0
+            route = rec.get("Route", {})
+            hits.append({
+                "date": rec.get("Date", ""),
+                "route": f'{route.get("OriginAirport", "")}-{route.get("DestinationAirport", "")}',
+                "cabin": cabin,
+                "program": program,
+                "miles": miles,
+                "seats": seats,
+                "direct": is_direct,
+                "star": seats >= MIN_SEATS_STAR,
+                "channel": "UA里程" if program == "united" else "MR转点",
+            })
+    return hits
+
+
+def fmt_line(h):
+    star = "★" if h["star"] else " "
+    miles_str = f'{h["miles"]:,}' if h["miles"] else "?"
+    seats_str = str(h["seats"]) if h["seats"] else "?"
+    direct_str = "直飞" if h["direct"] else "转机"
+    return (f'{star} {h["date"]:<12}{h["route"]:<10}{CABIN_NAMES[h["cabin"]]:<4}'
+            f'{h["program"]:<15}{miles_str:>9}  {seats_str:>2}座 '
+            f'{direct_str} [{h["channel"]}]')
+
+
+def main():
+    if not API_KEY:
+        sys.exit("错误: 请先设置环境变量 SEATS_AERO_API_KEY")
+
+    all_hits = []
+    for group_name, dests, direct_only in DEST_GROUPS:
+        print(f"\n搜索 {'/'.join(ORIGINS)} -> {group_name} "
+              f"({START_DATE} 至 {END_DATE}) ...")
+        try:
+            records = search_group(ORIGINS, dests)
+        except requests.HTTPError as e:
+            print(f"  请求失败: {e}")
+            continue
+        hits = extract_hits(records, direct_only)
+        print(f"  找到 {len(hits)} 个符合条件的结果")
+        all_hits.extend(hits)
+
+    if not all_hits:
+        print("\n没有找到符合条件的奖励票。")
+        return
+
+    all_hits.sort(key=lambda h: (not h["star"], h["date"], h["miles"] or 10**9))
+    starred = [h for h in all_hits if h["star"]]
+
+    print("\n" + "=" * 70)
+    if starred:
+        print(f"★ 重点推荐 (>= {MIN_SEATS_STAR} 座, 全家可同行): {len(starred)} 条")
+        print("-" * 70)
+        for h in starred:
+            print(fmt_line(h))
+    else:
+        print(f"本次没有 >= {MIN_SEATS_STAR} 座的票, 以下为全部结果 (可分批出票):")
+
+    print("\n全部结果:")
+    print("-" * 70)
+    for h in all_hits:
+        print(fmt_line(h))
+
+    print(f"\n说明: [MR转点]=Amex积分转对应计划出票; [UA里程]=用你的United余额,"
+          f"\n持United信用卡在官网登陆后部分saver有卡友折扣价, 以官网显示为准。")
+    print(f"\n共 {len(all_hits)} 条。先到对应计划官网确认舱位仍在, 再转点出票。")
+
+
+if __name__ == "__main__":
+    main()
