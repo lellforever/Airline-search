@@ -42,7 +42,7 @@ PRIORITY_START = date(2027, 3, 1)
 PRIORITY_END = date(2027, 4, 10)
 
 # API 每页最多返回 1000 条且按日期排序, 必须翻页才能拿到远期数据
-MAX_PAGES = 15                           # 每组最多翻的页数
+MAX_PAGES = 8                            # 每组最多翻的页数 (省API额度; 假期窗口有专项查询兜底)
 
 # MR 转点伙伴 + United (你有 UA 里程)
 MR_PARTNERS = {
@@ -98,7 +98,7 @@ def search_group(origins, dests, start, end):
         if cursor is None:
             break
     last_date = records[-1].get("Date", "?") if records else "-"
-    print(f"  [翻了 {page + 1} 页, 共 {len(records)} 条原始记录, "
+    print(f"  [翻了 {page + 1} 页, 累计 {len(records)} 条原始记录, "
           f"覆盖到 {last_date} | API 今日剩余额度: {remaining}]")
     return records
 
