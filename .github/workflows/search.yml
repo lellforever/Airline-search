@@ -37,7 +37,12 @@ jobs:
         run: |
           if grep -q "共 .* 条" result.txt; then
             TITLE="有奖励票! $(date +'%Y-%m-%d %H:%M') UTC"
-            head -c 60000 result.txt > issue_body.txt
+            {
+              echo '```text'
+              head -c 58000 result.txt
+              echo ""
+              echo '```'
+            } > issue_body.txt
             gh issue create \
               --repo "${{ github.repository }}" \
               --title "$TITLE" \
