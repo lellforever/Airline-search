@@ -160,7 +160,7 @@ def extract_hits(records, direct_only):
 
 def fmt_line(h):
     star = "★" if h["star"] else " "
-    tag = "【假期】" if h.get("priority") else ""
+    tag = "【" + h["priority"] + "】" if h.get("priority") else ""
     miles_str = f'{h["miles"]:,}' if h["miles"] else "?"
     seats_str = str(h["seats"]) if h["seats"] else "?"
     direct_str = "直飞" if h["direct"] else "转机"
