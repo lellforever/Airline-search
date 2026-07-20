@@ -180,6 +180,14 @@ def main():
         print("\n没有找到符合条件的奖励票。")
         return
 
+    # 去重: 翻页会有重叠, 同一 (日期,航线,舱位,计划) 只保留座位最多的一条
+    best = {}
+    for h in all_hits:
+        key = (h["date"], h["route"], h["cabin"], h["program"])
+        if key not in best or h["seats"] > best[key]["seats"]:
+            best[key] = h
+    all_hits = list(best.values())
+
     all_hits.sort(key=lambda h: (not h.get("priority"), not h["star"],
                                  h["date"], h["miles"] or 10**9))
     priority = [h for h in all_hits if h.get("priority")]
@@ -200,10 +208,14 @@ def main():
         for h in starred:
             print(fmt_line(h))
 
-    print("\n全部结果:")
+    FULL_LIST_CAP = 200
+    print(f"\n全部结果 (最多显示 {FULL_LIST_CAP} 条):")
     print("-" * 70)
-    for h in all_hits:
+    for h in all_hits[:FULL_LIST_CAP]:
         print(fmt_line(h))
+    if len(all_hits) > FULL_LIST_CAP:
+        print(f"... 另有 {len(all_hits) - FULL_LIST_CAP} 条未显示 "
+              f"(完整数据可在 Actions 日志或 seats.aero 查看)")
 
     print(f"\n说明: [MR转点]=Amex积分转对应计划出票; [UA里程]=用你的United余额,"
           f"\n持United信用卡在官网登陆后部分saver有卡友折扣价, 以官网显示为准。")
