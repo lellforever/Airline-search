@@ -37,10 +37,11 @@ jobs:
         run: |
           if grep -q "共 .* 条" result.txt; then
             TITLE="有奖励票! $(date +'%Y-%m-%d %H:%M') UTC"
+            head -c 60000 result.txt > issue_body.txt
             gh issue create \
               --repo "${{ github.repository }}" \
               --title "$TITLE" \
-              --body-file result.txt
+              --body-file issue_body.txt
           else
             echo "本次没有搜到符合条件的票,不发通知。"
           fi
