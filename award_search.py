@@ -39,6 +39,9 @@ MIN_SEATS_STAR = 4                       # 家庭出行: >=4 座标星
 PRIORITY_START = date(2027, 3, 1)
 PRIORITY_END = date(2027, 4, 10)
 
+# API 每页最多返回 1000 条且按日期排序, 必须翻页才能拿到远期数据
+MAX_PAGES = 15                           # 每组最多翻的页数
+
 # MR 转点伙伴 + United (你有 UA 里程)
 MR_PARTNERS = {
     "aeroplan", "virginatlantic", "flyingblue", "singapore",
@@ -56,22 +59,41 @@ CABIN_NAMES = {"J": "商务", "F": "头等"}
 
 
 def search_group(origins, dests):
-    params = {
+    """分页拉取: API 每页最多 1000 条且按日期升序, 不翻页就只能看到最近一个月"""
+    base_params = {
         "origin_airport": ",".join(origins),
         "destination_airport": ",".join(dests),
         "start_date": START_DATE.isoformat(),
         "end_date": END_DATE.isoformat(),
         "take": 1000,
     }
-    resp = requests.get(
-        f"{API_BASE}/search",
-        params=params,
-        headers={"Partner-Authorization": API_KEY, "Accept": "application/json"},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    print(f"  [API 今日剩余额度: {resp.headers.get('x-ratelimit-remaining', '?')}]")
-    return resp.json().get("data", [])
+    records = []
+    cursor = None
+    remaining = "?"
+    for page in range(MAX_PAGES):
+        params = dict(base_params)
+        if cursor is not None:
+            params["cursor"] = cursor
+        resp = requests.get(
+            f"{API_BASE}/search",
+            params=params,
+            headers={"Partner-Authorization": API_KEY, "Accept": "application/json"},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        remaining = resp.headers.get("x-ratelimit-remaining", "?")
+        body = resp.json()
+        batch = body.get("data", [])
+        records.extend(batch)
+        if not body.get("hasMore") or not batch:
+            break
+        cursor = body.get("cursor")
+        if cursor is None:
+            break
+    last_date = records[-1].get("Date", "?") if records else "-"
+    print(f"  [翻了 {page + 1} 页, 共 {len(records)} 条原始记录, "
+          f"覆盖到 {last_date} | API 今日剩余额度: {remaining}]")
+    return records
 
 
 def _in_window(date_str):
