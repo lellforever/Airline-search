@@ -2,8 +2,9 @@ name: Award Search
 
 on:
   schedule:
-    - cron: "0 1,13 * * *"
-  workflow_dispatch: {}
+    # 每 3 小时跑一次 (一天 8 次)
+    - cron: "0 */3 * * *"
+  workflow_dispatch: {}   # 允许手动点按钮触发,方便测试
 
 permissions:
   issues: write
