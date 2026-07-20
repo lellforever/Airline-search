@@ -25,7 +25,7 @@ DEST_GROUPS = [
     ("亚洲", ["HND", "NRT", "HKG", "TPE", "ICN", "SIN", "BKK"], True),
     ("欧洲", ["LHR", "CDG", "FRA", "AMS", "ZRH", "MUC"], True),
     ("大洋洲", ["SYD", "MEL", "AKL"], True),
-    ("海岛(可转机)", ["MLE", "NAN", "PPT", "HNL", "TVU"], False),
+    ("海岛(可转机)", ["MLE", "NAN", "PPT", "TVU"], False),
 ]
 
 START_DATE = date.today() + timedelta(days=14)
@@ -34,6 +34,8 @@ END_DATE = date.today() + timedelta(days=330)
 CABINS = ["J", "F"]                      # 商务 + 头等
 MAX_MILES = {"J": 140000, "F": 200000}   # 单程里程上限, 超过视为非saver
 MIN_SEATS_STAR = 4                       # 家庭出行: >=4 座标星
+MIN_SEATS = 2                            # 少于这个座位数的不要 (过滤1座票)
+MIN_DISTANCE_MI = 3500                   # 短于约7小时飞行的不要 (夏威夷等)
 
 # 假期窗口: 这个日期段内的票单独置顶提醒
 PRIORITY_START = date(2027, 3, 1)
@@ -58,13 +60,13 @@ CABIN_FIELDS = {
 CABIN_NAMES = {"J": "商务", "F": "头等"}
 
 
-def search_group(origins, dests):
+def search_group(origins, dests, start, end):
     """分页拉取: API 每页最多 1000 条且按日期升序, 不翻页就只能看到最近一个月"""
     base_params = {
         "origin_airport": ",".join(origins),
         "destination_airport": ",".join(dests),
-        "start_date": START_DATE.isoformat(),
-        "end_date": END_DATE.isoformat(),
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
         "take": 1000,
     }
     records = []
@@ -132,7 +134,15 @@ def extract_hits(records, direct_only):
                 seats = int(rec.get(seats_f) or 0)
             except (TypeError, ValueError):
                 seats = 0
+            if 0 < seats < MIN_SEATS:
+                continue                     # 座位数已知且太少, 不要
             route = rec.get("Route", {})
+            try:
+                dist = int(route.get("Distance") or 0)
+            except (TypeError, ValueError):
+                dist = 0
+            if 0 < dist < MIN_DISTANCE_MI:
+                continue                     # 航距太短 (约<7小时), 不要
             hits.append({
                 "date": rec.get("Date", ""),
                 "route": f'{route.get("OriginAirport", "")}-{route.get("DestinationAirport", "")}',
@@ -168,7 +178,9 @@ def main():
         print(f"\n搜索 {'/'.join(ORIGINS)} -> {group_name} "
               f"({START_DATE} 至 {END_DATE}) ...")
         try:
-            records = search_group(ORIGINS, dests)
+            records = search_group(ORIGINS, dests, START_DATE, END_DATE)
+            print("  + 假期窗口专项补查 ...")
+            records += search_group(ORIGINS, dests, PRIORITY_START, PRIORITY_END)
         except Exception as e:
             print(f"  请求失败, 跳过该组: {e}")
             continue
