@@ -1,1 +1,45 @@
+name: Award Search
 
+on:
+  schedule:
+    - cron: "0 1,13 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run award search
+        env:
+          SEATS_AERO_API_KEY: ${{ secrets.SEATS_AERO_API_KEY }}
+        run: |
+          python3 award_search.py | tee result.txt
+
+      - name: Open issue if awards found
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if grep -q "共 .* 条" result.txt; then
+            TITLE="有奖励票! $(date +'%Y-%m-%d %H:%M') UTC"
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --body-file result.txt
+          else
+            echo "本次没有搜到符合条件的票,不发通知。"
+          fi
