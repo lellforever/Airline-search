@@ -74,15 +74,20 @@ def search_group(origins, dests):
         params = dict(base_params)
         if cursor is not None:
             params["cursor"] = cursor
-        resp = requests.get(
-            f"{API_BASE}/search",
-            params=params,
-            headers={"Partner-Authorization": API_KEY, "Accept": "application/json"},
-            timeout=60,
-        )
-        resp.raise_for_status()
+        try:
+            resp = requests.get(
+                f"{API_BASE}/search",
+                params=params,
+                headers={"Partner-Authorization": API_KEY,
+                         "Accept": "application/json"},
+                timeout=90,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+        except Exception as e:
+            print(f"  [第 {page + 1} 页请求失败, 用已取到的数据继续: {e}]")
+            break
         remaining = resp.headers.get("x-ratelimit-remaining", "?")
-        body = resp.json()
         batch = body.get("data", [])
         records.extend(batch)
         if not body.get("hasMore") or not batch:
@@ -164,8 +169,8 @@ def main():
               f"({START_DATE} 至 {END_DATE}) ...")
         try:
             records = search_group(ORIGINS, dests)
-        except requests.HTTPError as e:
-            print(f"  请求失败: {e}")
+        except Exception as e:
+            print(f"  请求失败, 跳过该组: {e}")
             continue
         hits = extract_hits(records, direct_only)
         print(f"  找到 {len(hits)} 个符合条件的结果")
