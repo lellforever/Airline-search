@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-Award flight auto-search v2 — seats.aero Partner API
-LAX/SFO 出发 商务/头等 saver 监控:
-  - 直飞: 亚洲/欧洲/大洋洲主要城市
-  - 可转机: 海岛目的地 (马尔代夫/斐济/大溪地等)
-  - 4 张票优先标星, MR 转点伙伴 + United 里程分别标注
+Award flight auto-search v3 — seats.aero Partner API
+LAX/SFO 出发 商务/头等 saver 监控 + 2027春假去/回程专项
 """
 
 import os
@@ -34,15 +31,18 @@ END_DATE = date.today() + timedelta(days=330)
 CABINS = ["J", "F"]                      # 商务 + 头等
 MAX_MILES = {"J": 140000, "F": 200000}   # 单程里程上限, 超过视为非saver
 MIN_SEATS_STAR = 4                       # 家庭出行: >=4 座标星
-MIN_SEATS = 2                            # 少于这个座位数的不要 (过滤1座票)
+MIN_SEATS = 1                            # 1座票也保留 (Claude分析时会区分)
 MIN_DISTANCE_MI = 3500                   # 短于约7小时飞行的不要 (夏威夷等)
 
-# 假期窗口: 这个日期段内的票单独置顶提醒
-PRIORITY_START = date(2027, 3, 1)
-PRIORITY_END = date(2027, 4, 10)
+# 假期行程: 去程 3/24-26 出发, 回程 4/4 前后从目的地回洛杉矶
+OUT_START = date(2027, 3, 24)
+OUT_END = date(2027, 3, 26)
+RET_START = date(2027, 4, 3)     # 回程留了前后一天弹性, 可自行收紧
+RET_END = date(2027, 4, 5)
+RETURN_TO = ["LAX"]
 
 # API 每页最多返回 1000 条且按日期排序, 必须翻页才能拿到远期数据
-MAX_PAGES = 8                            # 每组最多翻的页数 (省API额度; 假期窗口有专项查询兜底)
+MAX_PAGES = 8                            # 每组最多翻的页数 (假期窗口有专项查询兜底)
 
 # MR 转点伙伴 + United (你有 UA 里程)
 MR_PARTNERS = {
@@ -61,7 +61,7 @@ CABIN_NAMES = {"J": "商务", "F": "头等"}
 
 
 def search_group(origins, dests, start, end):
-    """分页拉取: API 每页最多 1000 条且按日期升序, 不翻页就只能看到最近一个月"""
+    """分页拉取: API 每页最多 1000 条且按日期升序"""
     base_params = {
         "origin_airport": ",".join(origins),
         "destination_airport": ",".join(dests),
@@ -103,15 +103,7 @@ def search_group(origins, dests, start, end):
     return records
 
 
-def _in_window(date_str):
-    try:
-        d = date.fromisoformat(date_str[:10])
-    except (ValueError, TypeError):
-        return False
-    return PRIORITY_START <= d <= PRIORITY_END
-
-
-def extract_hits(records, direct_only):
+def extract_hits(records, direct_only, ptag=None):
     hits = []
     for rec in records:
         program = rec.get("Source", "")
@@ -135,7 +127,7 @@ def extract_hits(records, direct_only):
             except (TypeError, ValueError):
                 seats = 0
             if 0 < seats < MIN_SEATS:
-                continue                     # 座位数已知且太少, 不要
+                continue
             route = rec.get("Route", {})
             try:
                 dist = int(route.get("Distance") or 0)
@@ -145,7 +137,8 @@ def extract_hits(records, direct_only):
                 continue                     # 航距太短 (约<7小时), 不要
             hits.append({
                 "date": rec.get("Date", ""),
-                "route": f'{route.get("OriginAirport", "")}-{route.get("DestinationAirport", "")}',
+                "route": f'{route.get("OriginAirport", "")}-'
+                         f'{route.get("DestinationAirport", "")}',
                 "cabin": cabin,
                 "program": program,
                 "miles": miles,
@@ -153,7 +146,7 @@ def extract_hits(records, direct_only):
                 "direct": is_direct,
                 "star": seats >= MIN_SEATS_STAR,
                 "channel": "UA里程" if program == "united" else "MR转点",
-                "priority": _in_window(rec.get("Date", "")),
+                "priority": ptag,
             })
     return hits
 
@@ -179,12 +172,16 @@ def main():
               f"({START_DATE} 至 {END_DATE}) ...")
         try:
             records = search_group(ORIGINS, dests, START_DATE, END_DATE)
-            print("  + 假期窗口专项补查 ...")
-            records += search_group(ORIGINS, dests, PRIORITY_START, PRIORITY_END)
+            hits = extract_hits(records, direct_only)
+            print("  + 去程专项 (3/24-26 出发) ...")
+            rec_out = search_group(ORIGINS, dests, OUT_START, OUT_END)
+            hits += extract_hits(rec_out, direct_only, ptag="去程")
+            print("  + 回程专项 (4/4 前后回 LAX) ...")
+            rec_ret = search_group(dests, RETURN_TO, RET_START, RET_END)
+            hits += extract_hits(rec_ret, direct_only, ptag="回程")
         except Exception as e:
             print(f"  请求失败, 跳过该组: {e}")
             continue
-        hits = extract_hits(records, direct_only)
         print(f"  找到 {len(hits)} 个符合条件的结果")
         all_hits.extend(hits)
 
@@ -197,22 +194,36 @@ def main():
     for h in all_hits:
         key = (h["date"], h["route"], h["cabin"], h["program"])
         if key not in best or h["seats"] > best[key]["seats"]:
+            tag = best[key].get("priority") if key in best else None
             best[key] = h
+            if not h.get("priority") and tag:
+                h["priority"] = tag
+        elif h.get("priority") and not best[key].get("priority"):
+            best[key]["priority"] = h["priority"]
     all_hits = list(best.values())
 
     all_hits.sort(key=lambda h: (not h.get("priority"), not h["star"],
                                  h["date"], h["miles"] or 10**9))
-    priority = [h for h in all_hits if h.get("priority")]
+    outbound = [h for h in all_hits if h.get("priority") == "去程"]
+    inbound = [h for h in all_hits if h.get("priority") == "回程"]
     starred = [h for h in all_hits if h["star"] and not h.get("priority")]
 
     print("\n" + "=" * 70)
-    print(f"🎯 假期窗口 {PRIORITY_START} 至 {PRIORITY_END}: {len(priority)} 条")
+    print(f"🎯 去程 {OUT_START} 至 {OUT_END} (LAX/SFO 出发): {len(outbound)} 条")
     print("-" * 70)
-    if priority:
-        for h in priority:
+    if outbound:
+        for h in outbound:
             print(fmt_line(h))
     else:
-        print("(暂时没有假期窗口内的票, 各计划仍在陆续放票, 持续监控中)")
+        print("(去程窗口暂无票, 持续监控中)")
+
+    print(f"\n🎯 回程 {RET_START} 至 {RET_END} (目的地 -> LAX): {len(inbound)} 条")
+    print("-" * 70)
+    if inbound:
+        for h in inbound:
+            print(fmt_line(h))
+    else:
+        print("(回程窗口暂无票, 持续监控中)")
 
     if starred:
         print(f"\n★ 其他日期 >= {MIN_SEATS_STAR} 座: {len(starred)} 条")
@@ -220,7 +231,7 @@ def main():
         for h in starred:
             print(fmt_line(h))
 
-    FULL_LIST_CAP = 200
+    FULL_LIST_CAP = 1000
     print(f"\n全部结果 (最多显示 {FULL_LIST_CAP} 条):")
     print("-" * 70)
     for h in all_hits[:FULL_LIST_CAP]:
