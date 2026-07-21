@@ -23,6 +23,7 @@ DEST_GROUPS = [
     ("欧洲", ["LHR", "CDG", "FRA", "AMS", "ZRH", "MUC"], True),
     ("大洋洲", ["SYD", "MEL", "AKL"], True),
     ("海岛(可转机)", ["MLE", "NAN", "PPT", "TVU"], False),
+    ("马尔代夫通道", ["DOH", "DXB", "AUH"], False),
 ]
 
 START_DATE = date.today() + timedelta(days=14)
