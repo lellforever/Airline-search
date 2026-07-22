@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Award flight auto-search v4 — seats.aero Partner API
+Award flight auto-search v5 — seats.aero Partner API
 广搜: 精选过滤 (商务/头等 saver) 当行情参考
 假期窗口 (去程3/24-26, 回程4/4前后): 超经/商务/头等全计划不过滤, 交给 Claude 分析
 """
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import requests
 
@@ -185,6 +185,8 @@ def dedupe(hits):
 
 
 def main():
+    print(f"运行时间: "
+          f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
     if not API_KEY:
         sys.exit("错误: 请先设置环境变量 SEATS_AERO_API_KEY")
 
