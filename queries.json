@@ -1,0 +1,13 @@
+{
+  "note": "改这个文件并提交, GitHub 会自动跑一次查询, 结果在 adhoc.txt。日期格式 YYYY-MM-DD; cabins: Y经济 W超经 J商务 F头等",
+  "queries": [
+    {"name": "马代·圣诞参照 去", "from": ["LAX", "SFO"], "to": ["MLE"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "马代·圣诞参照 回", "from": ["MLE"], "to": ["LAX", "SFO"], "start": "2027-01-01", "end": "2027-01-05", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "斐济·圣诞参照 去", "from": ["LAX", "SFO"], "to": ["NAN"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "斐济·圣诞参照 回", "from": ["NAN"], "to": ["LAX", "SFO"], "start": "2027-01-01", "end": "2027-01-05", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "东非·圣诞参照 去", "from": ["LAX", "SFO"], "to": ["JRO", "NBO", "ZNZ"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "东非·圣诞参照 回", "from": ["JRO", "NBO", "ZNZ"], "to": ["LAX", "SFO"], "start": "2027-01-01", "end": "2027-01-05", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "泰国·圣诞参照 去", "from": ["LAX", "SFO"], "to": ["HKT", "BKK"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "泰国·圣诞参照 回", "from": ["HKT", "BKK"], "to": ["LAX", "SFO"], "start": "2027-01-01", "end": "2027-01-05", "cabins": ["W", "J"], "min_seats": 4}
+  ]
+}

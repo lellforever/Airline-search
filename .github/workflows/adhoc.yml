@@ -1,0 +1,43 @@
+name: Ad-hoc Award Query
+
+on:
+  push:
+    paths:
+      - "queries.json"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repo-write
+  cancel-in-progress: false
+
+jobs:
+  adhoc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run ad-hoc queries
+        env:
+          SEATS_AERO_API_KEY: ${{ secrets.SEATS_AERO_API_KEY }}
+        run: python3 adhoc_search.py | tee adhoc.txt
+
+      - name: Save result to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add adhoc.txt
+          git commit -m "update adhoc result" || { echo skip; exit 0; }
+          git pull --rebase origin main
+          git push
