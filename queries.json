@@ -1,9 +1,7 @@
 {
-  "note": "第二轮: 刚放票的窗口 (约11个月后) 作'放票当天能抢到什么'的参照",
+  "note": "法航新开 SAN-CDG 直飞 (2027-05-03 起, 周一三五)。10/14 开售, seats.aero 收录后才有数据",
   "queries": [
-    {"name": "马代通道·刚放票 去", "from": ["LAX", "SFO"], "to": ["MLE", "DOH", "DXB"], "start": "2027-08-25", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
-    {"name": "斐济·刚放票 去", "from": ["LAX", "SFO"], "to": ["NAN"], "start": "2027-08-25", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
-    {"name": "东非·刚放票 去", "from": ["LAX", "SFO"], "to": ["JRO", "NBO", "ZNZ", "AMS", "CDG"], "start": "2027-08-25", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
-    {"name": "泰国·刚放票 去", "from": ["LAX", "SFO"], "to": ["HKT", "BKK", "TPE", "SIN", "HKG", "NRT", "HND"], "start": "2027-08-25", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4}
+    {"name": "SAN-CDG 新航线 去", "from": ["SAN"], "to": ["CDG"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "CDG-SAN 新航线 回", "from": ["CDG"], "to": ["SAN"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4}
   ]
 }
