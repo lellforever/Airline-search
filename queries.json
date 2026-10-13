@@ -1,6 +1,9 @@
 {
-  "note": "法航新开 SAN-CDG 直飞 (2027-05-03 起, 周一三五)。10/14 开售, seats.aero 收录后才有数据",
+  "note": "检查 Flying Blue 能否订华航/大韩 LAX/SFO-台北/首尔商务 (全年扫描); SAN-CDG 新航线持续观察",
   "queries": [
+    {"name": "台北 商务 全年 (看 flyingblue 有没有)", "from": ["LAX", "SFO"], "to": ["TPE"], "start": "2026-11-01", "end": "2027-09-07", "cabins": ["J"], "min_seats": 4},
+    {"name": "首尔 商务 全年 (看 flyingblue 有没有)", "from": ["LAX", "SFO"], "to": ["ICN"], "start": "2026-11-01", "end": "2027-09-07", "cabins": ["J"], "min_seats": 4},
+    {"name": "台北 圣诞档 超经/商务", "from": ["LAX", "SFO"], "to": ["TPE"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
     {"name": "SAN-CDG 新航线 去", "from": ["SAN"], "to": ["CDG"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
     {"name": "CDG-SAN 新航线 回", "from": ["CDG"], "to": ["SAN"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4}
   ]
