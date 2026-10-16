@@ -1,6 +1,9 @@
 {
-  "note": "日本圣诞档 2026: 12/11(周五晚)-12/12 去, 超经/商务, 4 人",
+  "note": "日本多城市: 12/12 LAX-东京, 12/17 东京-札幌, 12/23 札幌-LAX, 超经/商务, 4 人",
   "queries": [
-    {"name": "日本 去程 12/11-12", "from": ["LAX", "SFO", "SAN"], "to": ["HND", "NRT", "KIX"], "start": "2026-12-11", "end": "2026-12-12", "cabins": ["W", "J", "F"], "min_seats": 4}
+    {"name": "去 12/12 LAX-东京", "from": ["LAX"], "to": ["HND", "NRT"], "start": "2026-12-12", "end": "2026-12-12", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "国内 12/17 东京-札幌", "from": ["HND", "NRT"], "to": ["CTS"], "start": "2026-12-17", "end": "2026-12-17", "cabins": ["Y", "J"], "min_seats": 4},
+    {"name": "回 12/23 札幌-LAX (含转机)", "from": ["CTS"], "to": ["LAX", "SFO", "SAN"], "start": "2026-12-23", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
+    {"name": "回 12/23 东京-LAX (札幌另飞东京)", "from": ["HND", "NRT"], "to": ["LAX", "SFO", "SAN"], "start": "2026-12-23", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4}
   ]
 }
