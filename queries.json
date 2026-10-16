@@ -1,10 +1,8 @@
 {
-  "note": "检查 Flying Blue 能否订华航/大韩 LAX/SFO-台北/首尔商务 (全年扫描); SAN-CDG 新航线持续观察",
+  "note": "日本圣诞档 2026: 12/17-19 去, 12/24-25 回, 4 人",
   "queries": [
-    {"name": "台北 商务 全年 (看 flyingblue 有没有)", "from": ["LAX", "SFO"], "to": ["TPE"], "start": "2026-11-01", "end": "2027-09-07", "cabins": ["J"], "min_seats": 4},
-    {"name": "首尔 商务 全年 (看 flyingblue 有没有)", "from": ["LAX", "SFO"], "to": ["ICN"], "start": "2026-11-01", "end": "2027-09-07", "cabins": ["J"], "min_seats": 4},
-    {"name": "台北 圣诞档 超经/商务", "from": ["LAX", "SFO"], "to": ["TPE"], "start": "2026-12-17", "end": "2026-12-23", "cabins": ["W", "J"], "min_seats": 4},
-    {"name": "SAN-CDG 新航线 去", "from": ["SAN"], "to": ["CDG"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4},
-    {"name": "CDG-SAN 新航线 回", "from": ["CDG"], "to": ["SAN"], "start": "2027-05-03", "end": "2027-09-07", "cabins": ["W", "J"], "min_seats": 4}
+    {"name": "日本 去程 12/17-19", "from": ["LAX", "SFO", "SAN"], "to": ["HND", "NRT", "KIX"], "start": "2026-12-17", "end": "2026-12-19", "cabins": ["Y", "W", "J", "F"], "min_seats": 4},
+    {"name": "日本 回程 12/24-25", "from": ["HND", "NRT", "KIX"], "to": ["LAX", "SFO", "SAN"], "start": "2026-12-24", "end": "2026-12-25", "cabins": ["Y", "W", "J", "F"], "min_seats": 4},
+    {"name": "日本 回程 放宽 12/23-27 (参考)", "from": ["HND", "NRT", "KIX"], "to": ["LAX", "SFO", "SAN"], "start": "2026-12-23", "end": "2026-12-27", "cabins": ["W", "J"], "min_seats": 2}
   ]
 }
